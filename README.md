@@ -13,11 +13,11 @@ Super-resolution problem tries to upscale the image so that perceived loss of qu
 
 ## Results
 
-`TODO add image here`
+![gh_image_compare](https://github.com/Scthe/SRCNN---PyTorch/assets/9325337/2b526188-220c-4dd8-b648-cdacd125a449)
 
 _left: upscaling with bicubic interpolation, right: result of the presented algorithm_
 
-`TODO add image here`
+![gh_image_details](https://github.com/Scthe/SRCNN---PyTorch/assets/9325337/43eec73c-f814-472b-992e-ba9adda9cb53)
 
 _Details closeup - left: upscaling with bicubic interpolation, right: result of the presented algorithm_
 
