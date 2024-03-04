@@ -1,0 +1,24 @@
+# python
+__pycache__
+env
+
+# misc
+*.code-workspace
+
+# app folders
+models/*.pt
+# image upscale result
+images_upscaled/*.png
+# input images to generate samples from
+images_raw/*
+!images_raw/.gitkeep
+# generated samples: 32x32 px
+samples_gen_32/*
+!samples_gen_32/.gitkeep
+# generated samples: 64x64 px
+samples_gen_64/*
+!samples_gen_64/.gitkeep
+
+# my
+_references
+makefile
