@@ -1,9 +1,10 @@
 # SRCNN - PyTorch
 
-Currently, there are 2 predominant upscalers on [Civitai](https://civitai.com/): [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN/tree/master) and [UltraSharp](https://openmodeldb.info/models/4x-UltraSharp). Both are based on [ESRGAN](https://arxiv.org/pdf/1809.00219.pdf). If you look at any recent paper regarding SR, you will see sentences like:
+Currently, there are 2 predominant upscalers on [Civitai](https://civitai.com/): [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN/tree/master) and [UltraSharp](https://openmodeldb.info/models/4x-UltraSharp). Both are based on [ESRGAN](https://arxiv.org/pdf/1809.00219.pdf). If you look at any recent paper regarding Super-Resolution, you will see sentences like:
 
 > "Since the pioneering work of SRCNN [9], deep convolution neural network (CNN) approaches have brought prosperous developments in the SR field"
-> "Real-ESRGAN: Training Real-World Blind Super-Resolution with Pure Synthetic Data" by Wang et. all. This is the 2nd sentence in paragraph "1. Introduction" (right on the first page).
+>
+> -- <cite>"Real-ESRGAN: Training Real-World Blind Super-Resolution with Pure Synthetic Data" by Wang et. all.</cite>
 
 SRCNN? This sounds familiar. In 2015 I [wrote](https://github.com/Scthe/cnn-Super-Resolution) an implementation in raw OpenCL that runs on GPU. This repo is a PyTorch reimplementation that I wrote some time ago. I also had a TensorFlow one but seems to be lost in the depths of the hard drive.
 
@@ -41,7 +42,7 @@ inject_path() # call this fn from both 'main.py' and 'gen_samples.py'
 ### Training
 
 1. Put some images into `./images_raw`.
-2. `python gen_samples.py 400 -64`. Generate 4000 image pairs (one image was downscaled, the other is the original size). Each image is 64x64 px and it's stored in `./samples_gen_64`.
+2. `python gen_samples.py 400 -64`. Generate 400 image pairs (one image was downscaled, the other is the original size). Each image is 64x64 px and it's stored in `./samples_gen_64`.
 3. `python main.py --cpu -t -n -e 20 -i "samples_gen_64"`. Run training (`-t`) for 20 epochs using samples from `./samples_gen_64`. By default:
    - The program will use GPU if appropriate PyTorch is installed. Use `--cpu` flag to force to use the CPU (even if you have GPU-capable PyTorch).
    - The program will continue from the last checkpoint (stored in `./models`). Use `-n` to start from scratch.
