@@ -7,7 +7,15 @@ from os.path import join, isfile, splitext, getmtime, basename
 
 from termcolor import colored
 
-from srcnn import pick_device, load_model, train, save_model, upscale, save_image
+from srcnn import (
+    pick_device,
+    load_model,
+    save_model_onnx,
+    train,
+    save_model,
+    upscale,
+    save_image,
+)
 
 """
 TODO
@@ -102,6 +110,7 @@ if __name__ == "__main__":
         save_model(model, out_filename)
     else:
         img_path = args_require(args, "input")
+        """
         result = upscale(device, model, img_path)
         print(colored("Upscale finshed", "green"))
 
@@ -112,5 +121,8 @@ if __name__ == "__main__":
         out_filename = join(OUTPUT_DIR, f"{basename}.{out_date}.png")
         print(colored("Saving result to:", "blue"), f"'{out_filename}'")
         save_image(result, out_filename)
+        """
+
+        save_model_onnx(model, "srcnn.onnx")
 
     print("--- DONE ---")

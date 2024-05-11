@@ -37,7 +37,8 @@ class Net(nn.Module):
         conv_kwargs = {
             "stride": 1,
             "padding": "same",
-            "padding_mode": "reflect",
+            # "padding_mode": "reflect",
+            "padding_mode": "zeros",
             "bias": True,
         }
         self.conv1 = nn.Conv2d(1, l1_out, l1_conv_size, **conv_kwargs)
@@ -54,11 +55,14 @@ class Net(nn.Module):
         # x = self.conv2(x)
         return x
 
+    @property
+    def device(self):
+        ps = self.parameters()
+        return ps.__next__().device
 
-def load_model(filepath):
-    from os.path import isfile
 
-    if filepath is None:
+def load_model(filepath, force_new_model=False):
+    if filepath == None or force_new_model:
         print(colored("Creating new model", "blue"))
         model = Net(64, 9, 32, 1, 5)
     elif os.path.isfile(filepath):
@@ -72,6 +76,19 @@ def load_model(filepath):
 
 def save_model(model, filepath):
     torch.save(model, filepath)
+
+
+def save_model_onnx(model, filepath):
+    dummy_input = torch.randn(1, 1, 1000, 1000).to(model.device)
+    print(dummy_input.dim())
+    torch.onnx.export(
+        model,
+        dummy_input,
+        filepath,
+        # verbose=True,
+        input_names=["upscaled_greyscale_image_IN"],
+        output_names=["upscaled_greyscale_image_OUT"],
+    )
 
 
 def prepare_image(device, img):

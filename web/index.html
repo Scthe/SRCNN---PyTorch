@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>SRCNN online</title>
+    <meta name="description" content="." />
+    <meta name="author" content="Marcin Matuszczyk" />
+
+    <link rel="stylesheet" type="text/css" href="app.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/modern-normalize/2.0.0/modern-normalize.min.css"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.17.3/ort.min.js"
+      integrity="sha512-kUYzDZe8PUu0u+G8BzDV7BHHGBdYYMqFqkvfffEIDtKY7tPJfL58igceV3X0P37fvlmBLgYcLBxrADW57wvbxQ=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/jimp/0.22.12/jimp.min.js"
+      integrity="sha512-8xrUum7qKj8xbiUrOzDEJL5uLjpSIMxVevAM5pvBroaxJnxJGFsKaohQPmlzQP8rEoAxrAujWttTnx3AMgGIww=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+  </head>
+  <body>
+    <div id="app">
+      <main class="app-main">
+        <div class="app-header">
+          <h1>SRCNN online</h1>
+          <a
+            href="${GITHUB_LINK}"
+            title="See the repo on GitHub"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="github-btn reset-focus-states"
+          >
+            (github)
+            <!-- <${GitHubIcon} iconSize=${'30px'} /> -->
+          </a>
+        </div>
+
+        <div class="app-container">
+          <button id="test-infere-btn" type="button">Test Infere</button>
+          <canvas id="viewport" width="1000" height="1000"></canvas>
+        </div>
+      </main>
+    </div>
+    <script type="module" src="app.mjs"></script>
+  </body>
+</html>
