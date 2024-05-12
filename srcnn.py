@@ -80,14 +80,32 @@ def save_model(model, filepath):
 
 def save_model_onnx(model, filepath):
     dummy_input = torch.randn(1, 1, 1000, 1000).to(model.device)
-    print(dummy_input.dim())
+    name_in = "upscaled_greyscale_image_IN"
+    name_out = "upscaled_greyscale_image_OUT"
+    dynamic_axes = {}
+    dynamic_axes[name_in] = {
+        0: "in_batch_size",
+        1: "in_c",
+        2: "in_h",
+        3: "in_w",
+    }
+    dynamic_axes[name_out] = {
+        0: "out_batch_size",
+        1: "out_c",
+        2: "out_h",
+        3: "out_w",
+    }
+    print(dynamic_axes)
+
     torch.onnx.export(
         model,
         dummy_input,
         filepath,
         # verbose=True,
-        input_names=["upscaled_greyscale_image_IN"],
-        output_names=["upscaled_greyscale_image_OUT"],
+        input_names=[name_in],
+        output_names=[name_out],
+        # export_params= #Set this to False if you want to export an untrained model
+        dynamic_axes=dynamic_axes,
     )
 
 
@@ -102,7 +120,6 @@ def prepare_image(device, img):
             v2.ToDtype(torch.float32, scale=True),
         ]
     )
-    # print(image_path)
     img = transforms(img)
     img = img.to(device)
     return img

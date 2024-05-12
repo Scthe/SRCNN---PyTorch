@@ -14,3 +14,4 @@ typing_extensions==4.10.0
 packaging==24.0
 onnx==1.16.0
 onnxscript==0.1.0.dev20240511
+click==8.1.7

@@ -54,6 +54,33 @@ h3 {
   /* gap: 4em; */
 }
 
-canvas {
+#img-selector {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 0.5em;
+}
+
+.preview-img {
+  display: block;
+  grid-row: 1;
+  max-width: 100%;
+  cursor: pointer;
+
+  &:hover {
+    outline: 2px solid red;
+  }
+}
+
+#test-infere-btn {
+  display: none;
+}
+
+#text-status {
+  text-align: center;
+}
+
+#viewport {
   border: 1px solid red;
+  max-width: 100%;
+  opacity: 0;
 }

@@ -18,8 +18,8 @@
     />
 
     <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.17.3/ort.min.js"
-      integrity="sha512-kUYzDZe8PUu0u+G8BzDV7BHHGBdYYMqFqkvfffEIDtKY7tPJfL58igceV3X0P37fvlmBLgYcLBxrADW57wvbxQ=="
+      src="https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.17.3/ort.js"
+      integrity="sha512-QLvm2Y/mFapUjE+JfdT7nkTEdj/kAnCEhdDMpKZe6k9jbw2rRanacqsYlmsVAK+Z7T50QCp6CWoomr8VxtqQfA=="
       crossorigin="anonymous"
       referrerpolicy="no-referrer"
     ></script>
@@ -48,8 +48,15 @@
         </div>
 
         <div class="app-container">
+          <div id="img-selector"></div>
+
           <button id="test-infere-btn" type="button">Test Infere</button>
-          <canvas id="viewport" width="1000" height="1000"></canvas>
+
+          <p id="text-status"></p>
+
+          <div>
+            <canvas id="viewport" width="1000px" height="1000px"></canvas>
+          </div>
         </div>
       </main>
     </div>
