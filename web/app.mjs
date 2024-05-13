@@ -1,10 +1,5 @@
 const ONNX_MODEL = 'srcnn.onnx';
-const IMAGES = ['test_img.jpg', 'test_img2.jpg'].map((e) => `imgs/${e}`);
-
-// TODO reexport the onnx with correct dim names
-// TODO color mode
-// TODO image upload
-// TODO finish README
+const TEST_IMAGE = 'test_img2.jpg';
 
 const SKIP_INFERENCE = false;
 
@@ -16,13 +11,17 @@ const decodeDims = (dims) => [dims[3], dims[2]]; // [w,h]
   const Jimp = window.Jimp;
   const canvasEl = document.getElementById('viewport');
   const statusEl = document.getElementById('text-status');
+  const containerModeSelectEl = document.getElementById('img-selector');
+  const containerModeResultEl = document.getElementById('img-result');
+  const resetResultBtnEl = document.getElementById('img-reset');
+  const imgCompareEl = document.getElementById('img-compare');
 
-  let imageToInfer = IMAGES[0];
   let isProcessing = false; // DO NOT CHANGE IN INIT
 
-  document.getElementById('test-infere-btn').onclick = () =>
-    inferenceTestImage();
-  createImgSelector();
+  hookTestImageBtn();
+  hookFileInputZone();
+  hookResetBtn(resetResultBtnEl);
+  setModeShowResult(false);
 
   /**
    * https://onnxruntime.ai/docs/tutorials/web/classify-images-nextjs-github-template.html
@@ -39,10 +38,10 @@ const decodeDims = (dims) => [dims[3], dims[2]]; // [w,h]
     // https://onnxruntime.ai/docs/api/js/interfaces/InferenceSession.SessionOptions.html#graphOptimizationLevel
     const session = await InferenceSession.create(ONNX_MODEL, {
       executionProviders: [
-        // 'webgpu', // Error: no available backend found. ERR: [webgpu] RuntimeError: indirect call to null
+        'cpu', // OK, 1.632s
+        // 'wasm', // OK, 1.629s
+        // 'webgpu', // requires https. (May 2024) webgpu backend still has too many errors
         // 'webgl', // ERROR: input tensor[0] check failed: expected shape '[,,,]' but got [1,1,1280,1994]
-        'wasm', // OK
-        // 'cpu', // OK
       ],
       // graphOptimizationLevel: 'all',
       // freeDimensionOverrides: {
@@ -75,12 +74,15 @@ const decodeDims = (dims) => [dims[3], dims[2]]; // [w,h]
     return [output, inferenceTime];
   }
 
-  async function inferenceTestImage() {
+  async function inferenceImage(imageToInfer) {
     if (isProcessing) return;
     setProcessing(true);
 
     try {
-      let imageTensor = await getImageTensorFromPath(imageToInfer);
+      console.log('Input img:', imageToInfer);
+      const [orgImage, imageTensor] = await getImageTensorFromPath(
+        imageToInfer
+      );
       console.log('Input tensor:', imageTensor);
 
       if (!SKIP_INFERENCE) {
@@ -91,77 +93,30 @@ const decodeDims = (dims) => [dims[3], dims[2]]; // [w,h]
           `Size: ${imageTensor.dims[2]}x${imageTensor.dims[3]} px`
         );
 
-        drawResult(result);
+        await drawResult(canvasEl, result, orgImage);
       } else {
-        drawResult(imageTensor);
+        await drawResult(canvasEl, imageTensor, orgImage);
         setStatus(`Drawn input image`);
       }
     } catch (e) {
-      setStatus('ERROR:' + e.message);
+      setStatus('ERROR:', e.message);
       throw e;
     } finally {
       setProcessing(false);
     }
   }
 
-  function drawResult(result) {
-    console.log('Drawing to canvas: ', result);
-    const data = result.cpuData;
-    const [maxW, maxH] = decodeDims(result.dims);
-
-    canvasEl.width = maxW;
-    canvasEl.height = maxH;
-
-    const ctx = canvasEl.getContext('2d');
-    const imgData = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height);
-    const pixels = imgData.data;
-
-    for (let x = 0; x < maxW; x++) {
-      for (let y = 0; y < maxH; y++) {
-        // const idx = y * maxW + x;
-        const idx = x * maxH + y;
-        const grayscale = Math.floor(data[idx] * 255);
-        // if (y === 200) console.log({ grayscale });
-
-        pixels[idx * 4 + 0] = grayscale;
-        pixels[idx * 4 + 1] = grayscale;
-        pixels[idx * 4 + 2] = grayscale;
-        pixels[idx * 4 + 3] = 255;
-      }
-    }
-
-    ctx.putImageData(imgData, 0, 0);
-  }
-
-  function createImgSelector() {
-    const container = document.getElementById('img-selector');
-
-    IMAGES.forEach((imgName) => {
-      const el = document.createElement('img');
-      el.src = imgName;
-      el.className = 'preview-img';
-      el.onclick = () => {
-        console.log('img:', imgName);
-        imageToInfer = imgName;
-        inferenceTestImage();
-      };
-      container.appendChild(el);
-    });
-  }
-
   function setProcessing(nextIsProcessing) {
-    console.log(`--- PROCESSING: ${nextIsProcessing} ---`);
     isProcessing = nextIsProcessing;
     if (isProcessing) {
       setStatus('Processing..');
-      canvasEl.style.opacity = 0;
+      setModeShowResult(true);
+      hideEl(canvasEl);
+      hideEl(imgCompareEl);
+      hideEl(resetResultBtnEl);
     } else {
-      canvasEl.style.opacity = 1;
+      showEl(resetResultBtnEl);
     }
-  }
-
-  function setStatus(...texts) {
-    statusEl.textContent = texts.join(' ');
   }
 
   ///////////////
@@ -170,14 +125,19 @@ const decodeDims = (dims) => [dims[3], dims[2]]; // [w,h]
   async function getImageTensorFromPath(path) {
     var [image, width, height] = await loadImagefromPath(path);
     var imageTensor = imageDataToTensor(image, width, height);
-    return imageTensor;
+    return [image, imageTensor];
   }
 
   async function loadImagefromPath(path) {
+    const getImgSize = (imageObj) => {
+      if (imageObj._exif) return imageObj._exif.imageSize;
+      return imageObj.bitmap;
+    };
+
     const imageData = await Jimp.read(path).then((imageObj) => {
       console.log('Upscaling:', imageObj);
       // console.log('w-h', { width, height });
-      const { width, height } = imageObj._exif.imageSize;
+      const { width, height } = getImgSize(imageObj);
       const upscaledWidth = width * 2;
       const upscaledHeight = height * 2;
       // const upscaledHeight = width * 2; // test square images
@@ -221,4 +181,146 @@ const decodeDims = (dims) => [dims[3], dims[2]]; // [w,h]
     const inputTensor = new Tensor('float32', float32Data, dims);
     return inputTensor;
   }
+
+  ///////////////
+  /// UI
+
+  function setModeShowResult(isResult) {
+    if (isResult) {
+      console.log('MODE: result');
+      hideEl(containerModeSelectEl);
+      showEl(containerModeResultEl);
+    } else {
+      console.log('MODE: img select');
+      showEl(containerModeSelectEl);
+      hideEl(containerModeResultEl);
+    }
+  }
+
+  function hookFileInputZone() {
+    const fileInputZoneEl = document.getElementById('img-dropzone');
+    const fileInputEl = document.querySelector('#img-dropzone input');
+
+    const setDragClass = (v) => setClass(fileInputZoneEl, 'drop', v);
+
+    fileInputEl.onchange = async function (e) {
+      setDragClass(false);
+      const file = this.files[0];
+
+      const accept = this.accept ? this.accept.split(/, ?/) : undefined;
+      if (!accept.includes(file.type)) {
+        alert(
+          `File type not allowed. Expected: '${this.accept}'. Got: ${file.type}`
+        );
+        return;
+      }
+
+      const arrayBuffer = await file.arrayBuffer();
+      inferenceImage(arrayBuffer);
+    };
+
+    fileInputZoneEl.ondragenter = (e) => {
+      // console.log('ondragenter');
+      e.preventDefault();
+      setDragClass(true);
+    };
+    fileInputZoneEl.ondragleave = (e) => {
+      // console.log('ondragleave');
+      e.preventDefault();
+      setDragClass(false);
+    };
+  }
+
+  function hookTestImageBtn() {
+    const btnEl = document.getElementById('use-test-image-btn');
+    btnEl.onclick = () => {
+      inferenceImage(TEST_IMAGE);
+    };
+  }
+
+  function hookResetBtn(el) {
+    el.onclick = () => setModeShowResult(false);
+  }
+
+  async function drawResult(canvasEl, result, orgImage) {
+    console.log('Drawing to canvas: ', result);
+    console.log('Original image: ', orgImage);
+    const data = result.cpuData;
+    const [maxW, maxH] = decodeDims(result.dims);
+    const orgImgData = orgImage.bitmap.data;
+
+    showEl(canvasEl);
+    canvasEl.width = maxW;
+    canvasEl.height = maxH;
+
+    const ctx = canvasEl.getContext('2d');
+    const imgData = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height);
+    const pixels = imgData.data;
+
+    for (let x = 0; x < maxW; x++) {
+      for (let y = 0; y < maxH; y++) {
+        // org image
+        const orgImgIdx = x * maxH + y;
+        const r = orgImgData[orgImgIdx * 4];
+        const g = orgImgData[orgImgIdx * 4 + 1];
+        const b = orgImgData[orgImgIdx * 4 + 2];
+
+        // sample luma
+        const idx = x * maxH + y;
+        const new_luma = Math.floor(data[idx] * 255);
+        // show grayscale - debug
+        // pixels[idx * 4 + 0] = new_luma;
+        // pixels[idx * 4 + 1] = new_luma;
+        // pixels[idx * 4 + 2] = new_luma;
+        // pixels[idx * 4 + 3] = 255;
+
+        // combine: swap luma
+        // see srcnn.py for docs
+        const pr = 0.5 * r - 0.419 * g - 0.081 * b;
+        const pb = -0.169 * r - 0.331 * g + 0.5 * b;
+        pixels[idx * 4 + 0] = new_luma + 0.0 * pb + 1.402 * pr;
+        pixels[idx * 4 + 1] = new_luma - 0.344 * pb - 0.714 * pr;
+        pixels[idx * 4 + 2] = new_luma + 1.772 * pb + 0.0 * pr;
+        pixels[idx * 4 + 3] = 255;
+      }
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+
+    ///
+    const imgBefore = document.getElementById('img-compare-before');
+    imgBefore.src = await orgImage.getBase64Async(Jimp.AUTO);
+    // imgBefore.width = maxW;
+    // imgBefore.height = maxH;
+    const imgAfter = document.getElementById('img-compare-after');
+    imgAfter.src = canvasEl.toDataURL();
+    // imgAfter.width = maxW;
+    // imgAfter.height = maxH;
+
+    const ImageCompare = window.ImageCompare;
+    const viewer = new ImageCompare(imgCompareEl).mount();
+
+    hideEl(canvasEl);
+    showEl(imgCompareEl);
+  }
+
+  function setStatus(...texts) {
+    statusEl.textContent = texts.join(' ');
+  }
 })();
+
+function setClass(el, clazz, state) {
+  if (state) {
+    el.classList.add(clazz);
+  } else {
+    el.classList.remove(clazz);
+  }
+}
+
+function showEl(el) {
+  setClass(el, 'mode-hidden', false);
+}
+
+function hideEl(el) {
+  setClass(el, 'mode-hidden', true);
+}
