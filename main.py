@@ -1,13 +1,18 @@
-# import inject_external_torch_into_path
-# inject_external_torch_into_path.inject_path()
-
-import argparse
 from os import listdir
 from os.path import join, isfile, splitext, getmtime, basename
 
 from termcolor import colored
+import click
 
-from srcnn import pick_device, load_model, train, save_model, upscale, save_image
+from srcnn import (
+    pick_device,
+    load_model,
+    save_model_onnx,
+    train as srcnn_train,
+    save_model,
+    upscale as srcnn_upscale,
+    save_image,
+)
 
 """
 TODO
@@ -38,6 +43,17 @@ def find_model_file(force_new):
     return models[-1]
 
 
+def get_device_and_model(new_model: bool, cpu: bool):
+    [device, device_name] = pick_device(cpu)
+    print(colored("Using device:", "blue"), f"'{device_name}'({device})")
+
+    model_path = find_model_file(new_model)
+    model = load_model(model_path)
+    model = model.to(device)
+    print(colored("Model:", "blue"), model)
+    return device, model
+
+
 def generate_date_for_filename():
     from datetime import datetime
 
@@ -45,72 +61,79 @@ def generate_date_for_filename():
     return now.strftime("%Y-%m-%d--%H-%M-%S")
 
 
-def args_require(args, key):
-    value = vars(args)[key]
-    if value is None:
-        raise Exception(f"Missing program arg: '{key}'")
-    return value
+@click.command()
+@click.option(
+    "--input",
+    "-i",
+    type=click.Path(exists=True),
+    help="Directory with the training samples.",
+)
+# @click.argument("name", type=click.STRING, required=False)
+@click.option("--epochs", "-e", default=50, help="How long to train for.")
+@click.option(
+    "--new-model",
+    "-n",
+    is_flag=True,
+    default=False,
+    help="Starts training from scratch instead of continuing last session.",
+)
+@click.option("--cpu", is_flag=True, default=False, help="Force to use CPU.")
+def train(input: str, epochs: int, new_model: bool, cpu: bool):
+    device, model = get_device_and_model(new_model, cpu)
+
+    batch_size = 5
+    learing_rate = 0.01
+    srcnn_train(device, model, input, epochs, batch_size, learing_rate)
+    print(colored("Training finshed", "green"))
+
+    # save model params
+    out_date = generate_date_for_filename()
+    out_filename = join(MODELS_DIR, f"srcnn_model.{out_date}.pt")
+    print(colored("Saving model parameters to:", "blue"), f"'{out_filename}'")
+    save_model(model, out_filename)
+
+
+@click.command()
+@click.option(
+    "--input",
+    "-i",
+    type=click.Path(exists=True),
+    help="Image to upscale.",
+)
+@click.option("--cpu", is_flag=True, default=False, help="Force to use CPU.")
+def upscale(input: str, cpu: bool):
+    device, model = get_device_and_model(False, cpu)
+
+    result = srcnn_upscale(device, model, input)
+    print(colored("Upscale finshed", "green"))
+
+    # save result
+    base = basename(input)
+    filename = splitext(base)[0]
+    out_date = generate_date_for_filename()
+    out_filename = join(OUTPUT_DIR, f"{filename}.{out_date}.png")
+    print(colored("Saving result to:", "blue"), f"'{out_filename}'")
+    save_image(result, out_filename)
+
+
+@click.command()
+@click.option(
+    "--output", "-o", type=click.Path(), help="Result filepath.", default="srcnn.onnx"
+)
+def export_onnx(output):
+    """Export the model to ONNX file"""
+    device, model = get_device_and_model(new_model=False, cpu=True)
+    print(colored("Saving result to:", "blue"), f"'{output}'")
+    save_model_onnx(model, output)
+
+
+@click.group()
+def main():
+    f"""SRCNN app. By default, latest model from './{MODELS_DIR}' is used."""
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description=f"SRCNN app. By default, latest model from './{MODELS_DIR}' is used",
-    )
-
-    # https://docs.python.org/3/library/argparse.html
-    # https://stackoverflow.com/questions/20063/whats-the-best-way-to-parse-command-line-arguments
-    parser.add_argument("--train", "-t", action="store_true", help="Training mode")
-    parser.add_argument(
-        "--epochs", "-e", type=int, default=50, help="[Training] How long to train for"
-    )
-    parser.add_argument(
-        "--new-model",
-        "-n",
-        action="store_true",
-        help="[Training] Starts training from scratch",
-    )
-    parser.add_argument("--cpu", action="store_true", help="Force to use CPU")
-    parser.add_argument(
-        "--input",
-        "-i",
-        help=f"[Upscale] Image to upscale. [Training] Directory with training samples",
-    )
-
-    args = parser.parse_args()
-    # print(args)
-
-    [device, device_name] = pick_device(args.cpu)
-    print(colored("Using device:", "blue"), f"'{device_name}'({device})")
-
-    model_path = find_model_file(args.new_model)
-    model = load_model(model_path)
-    model = model.to(device)
-    print(colored("Model:", "blue"), model)
-
-    if args.train:
-        samples_dir = args_require(args, "input")
-
-        batch_size = 5
-        learing_rate = 0.01
-        train(device, model, samples_dir, args.epochs, batch_size, learing_rate)
-        print(colored("Training finshed", "green"))
-
-        # save model params
-        out_date = generate_date_for_filename()
-        out_filename = join(MODELS_DIR, f"srcnn_model.{out_date}.pt")
-        print(colored("Saving model parameters to:", "blue"), f"'{out_filename}'")
-        save_model(model, out_filename)
-    else:
-        img_path = args_require(args, "input")
-        result = upscale(device, model, img_path)
-        print(colored("Upscale finshed", "green"))
-
-        # save result
-        base = basename(img_path)
-        basename = splitext(base)[0]
-        out_date = generate_date_for_filename()
-        out_filename = join(OUTPUT_DIR, f"{basename}.{out_date}.png")
-        print(colored("Saving result to:", "blue"), f"'{out_filename}'")
-        save_image(result, out_filename)
-
-    print("--- DONE ---")
+    main.add_command(train)
+    main.add_command(upscale)
+    main.add_command(export_onnx)
+    main()

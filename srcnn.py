@@ -37,7 +37,8 @@ class Net(nn.Module):
         conv_kwargs = {
             "stride": 1,
             "padding": "same",
-            "padding_mode": "reflect",
+            # "padding_mode": "reflect",
+            "padding_mode": "zeros",
             "bias": True,
         }
         self.conv1 = nn.Conv2d(1, l1_out, l1_conv_size, **conv_kwargs)
@@ -54,11 +55,14 @@ class Net(nn.Module):
         # x = self.conv2(x)
         return x
 
+    @property
+    def device(self):
+        ps = self.parameters()
+        return ps.__next__().device
 
-def load_model(filepath):
-    from os.path import isfile
 
-    if filepath is None:
+def load_model(filepath, force_new_model=False):
+    if filepath == None or force_new_model:
         print(colored("Creating new model", "blue"))
         model = Net(64, 9, 32, 1, 5)
     elif os.path.isfile(filepath):
@@ -74,6 +78,37 @@ def save_model(model, filepath):
     torch.save(model, filepath)
 
 
+def save_model_onnx(model, filepath):
+    dummy_input = torch.randn(1, 1, 1000, 1000).to(model.device)
+    name_in = "upscaled_greyscale_image_IN"
+    name_out = "upscaled_greyscale_image_OUT"
+    dynamic_axes = {}
+    dynamic_axes[name_in] = {
+        0: "in_batch_size",
+        1: "in_c",
+        2: "in_h",
+        3: "in_w",
+    }
+    dynamic_axes[name_out] = {
+        0: "out_batch_size",
+        1: "out_c",
+        2: "out_h",
+        3: "out_w",
+    }
+    print(dynamic_axes)
+
+    torch.onnx.export(
+        model,
+        dummy_input,
+        filepath,
+        # verbose=True,
+        input_names=[name_in],
+        output_names=[name_out],
+        # export_params= #Set this to False if you want to export an untrained model
+        dynamic_axes=dynamic_axes,
+    )
+
+
 def prepare_image(device, img):
     from torchvision.transforms import v2
 
@@ -85,7 +120,6 @@ def prepare_image(device, img):
             v2.ToDtype(torch.float32, scale=True),
         ]
     )
-    # print(image_path)
     img = transforms(img)
     img = img.to(device)
     return img

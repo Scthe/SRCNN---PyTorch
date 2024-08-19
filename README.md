@@ -1,4 +1,4 @@
-# SRCNN - PyTorch
+# SRCNN - PyTorch ([DEMO](https://scthe.github.io/SRCNN-PyTorch/))
 
 Currently, there are 2 predominant upscalers on [Civitai](https://civitai.com/): [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN/tree/master) and [UltraSharp](https://openmodeldb.info/models/4x-UltraSharp). Both are based on [ESRGAN](https://arxiv.org/pdf/1809.00219.pdf). If you look at any recent paper regarding Super-Resolution, you will see sentences like:
 
@@ -43,7 +43,7 @@ inject_path() # call this fn from both 'main.py' and 'gen_samples.py'
 
 1. Put some images into `./images_raw`.
 2. `python gen_samples.py 400 -64`. Generate 400 image pairs (one image was downscaled, the other is the original size). Each image is 64x64 px and it's stored in `./samples_gen_64`.
-3. `python main.py --cpu -t -n -e 20 -i "samples_gen_64"`. Run training (`-t`) for 20 epochs using samples from `./samples_gen_64`. By default:
+3. `python main.py train --cpu -n -e 20 -i "samples_gen_64"`. Run training for 20 epochs using samples from `./samples_gen_64`. By default:
    - The program will use GPU if appropriate PyTorch is installed. Use `--cpu` flag to force to use the CPU (even if you have GPU-capable PyTorch).
    - The program will continue from the last checkpoint (stored in `./models`). Use `-n` to start from scratch.
 
@@ -55,11 +55,33 @@ After training, the model is saved to e.g. `./models/srcnn_model.2024-02-27--23-
 
 ### Inference
 
-- `python main.py -i "<some path here>/image_to_upscale.jpg"`. Run `main.py` with `-i` set to your image.
+- `python main.py upscale -i "<some path here>/image_to_upscale.jpg"`. Run `main.py` with `-i` set to your image.
 
 The program will automatically separate luma, run upscale, and reassemble the final image. The `--cpu` flag works here too. By default, it will use the latest model from the `./models` directory.
 
 The result is stored to e.g. `'./images_upscaled/<your_image_name>.2024-02-27--23-43-27.png'`.
+
+
+## Web demo
+
+The PyTorch model was exported to [ONNX file](https://onnxruntime.ai/docs/tutorials/web/classify-images-nextjs-github-template.html). This allows inference in the web browser.  Unfortunately, ONNX runtime on the web has errors that prevent using GPU backends (WebGPU, WebGL). CPU is much slower. Fortunately, this app is just my private playground. Use [netron.app](https://netron.app/) to preview the [srcnn.onnx](web/srcnn.onnx) file.
+
+### Lessons from ONNX conversion
+
+1. During the training, your image-based PyTorch model has input of size `[batch_size, img_channel_count, img_height, img_width]`. During inference, Pytorch accepts e.g. `[img_channel_count, img_height, img_width]`. It does not mind that the dimension for `batch_size` does not exist. **THIS IS NOT TRUE FOR ONNX!**.
+2. Double check you have always correct tensors for images: `[batch_size, img_channel_count, img_height, img_width]`. I've lost "a bit" of time cause my input had width and height reversed. Evident when:
+    - Model works only for square images.
+    - Vertical images have a few "ghost duplicates" along horizontal axis.
+    - Horizontal images have many "ghost duplicates" along horizontal axis.
+
+The second one sounds silly. But after years of writing code for CG, your fingers do not think about it.
+
+I recommend following utils (for single grayscale image processing):
+
+```js
+const encodeDims = (w, h) => [1, 1, h, w]; // [batch_size, channels, height, width]
+const decodeDims = (dims) => [dims[3], dims[2]]; // returns: [w, h]
+```
 
 ## The files
 

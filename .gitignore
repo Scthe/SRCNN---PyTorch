@@ -4,6 +4,7 @@ env
 
 # misc
 *.code-workspace
+.vscode
 
 # app folders
 models/*.pt
@@ -22,3 +23,7 @@ samples_gen_64/*
 # my
 _references
 makefile
+
+web/test_img.jpg
+web/*.pem
+./srcnn.onnx
